@@ -130,3 +130,27 @@ fn missing_ffprobe_is_reported_clearly() {
     let msg = convert(a).unwrap_err().to_string();
     assert!(msg.contains("ffprobe") && msg.contains("起動"), "{msg}");
 }
+
+#[test]
+fn widescreen_dvd_is_exactly_1920x1080() {
+    if !have_ffmpeg() { eprintln!("skip: ffmpeg not found"); return; }
+    let t = tempfile::tempdir().unwrap();
+    let disc = t.path().join("disc");
+    let vob = disc.join("VIDEO_TS/VTS_01_1.VOB");
+    std::fs::create_dir_all(vob.parent().unwrap()).unwrap();
+    let st = Command::new("ffmpeg")
+        .args(["-v", "error", "-y", "-f", "lavfi", "-i", "testsrc=size=720x480:rate=30000/1001:duration=11"])
+        .args(["-f", "lavfi", "-i", "sine=duration=11", "-c:v", "mpeg2video", "-aspect", "16:9", "-c:a", "mp2", "-f", "vob"])
+        .arg(&vob)
+        .status()
+        .unwrap();
+    assert!(st.success());
+    let out = t.path().join("wide.mp4");
+    convert(args(&disc, Some(out.clone()), false)).unwrap();
+    let probe = Command::new("ffprobe")
+        .args(["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=p=0"])
+        .arg(&out)
+        .output()
+        .unwrap();
+    assert_eq!(String::from_utf8_lossy(&probe.stdout).trim(), "1920,1080");
+}
