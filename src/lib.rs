@@ -5,3 +5,4 @@ pub mod probe;
 pub mod plan;
 pub mod run;
 pub mod commands;
+pub mod toolpath;

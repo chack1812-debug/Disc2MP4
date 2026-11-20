@@ -6,7 +6,7 @@
 
 ## 前提
 
-- ffmpeg / ffprobe が PATH 上にあること(または `--ffmpeg <ffmpeg のパス>` で指定。ffprobe は同じフォルダから探します)
+- ffmpeg / ffprobe が必要です。配布 zip 内の `get-ffmpeg.bat` をダブルクリックすると、exe の隣の `ffmpeg\` に自動で用意されます(公開ハッシュ値で検証します)。すでに持っている場合は PATH に入れるか、`--ffmpeg <パス>` で指定してください。探す順番は、`--ffmpeg` → exe の隣の `ffmpeg\` → PATH です
 - コピーガード(CSS / AACS)のあるディスクは対象外です。ISO ファイルは直接読めないので、Windows でマウントしたドライブ(またはフォルダ)を指定してください
 
 ## ビルド
@@ -37,7 +37,7 @@ disc2mp4 convert <ディスクのパス> --title 2 -o D:\out\movie.mp4
 | `--deinterlace` | `auto` / `on` / `off`(auto は映像がインターレースのときだけ解除) | auto |
 | `--quality` | `standard`(crf 20、速い) / `high`(crf 17、遅い) | high |
 | `--force` | 既存の出力を上書きする | off |
-| `--ffmpeg` | ffmpeg のパス | PATH 上の ffmpeg |
+| `--ffmpeg` | ffmpeg のパス | exe の隣の `ffmpeg\` → PATH 上の ffmpeg |
 
 10 秒未満のタイトルは(メニューの残りなどとみなして)変換対象から除外されます。
 
@@ -52,3 +52,11 @@ disc2mp4 convert <ディスクのパス> --title 2 -o D:\out\movie.mp4
 - AI 超解像・GUI は未対応です
 
 詳細は `docs/superpowers/specs/2026-11-20-disc2mp4-design.md` を参照してください。
+
+## 配布版
+
+配布用 zip(`disc2mp4.exe`・`get-ffmpeg.bat`・取扱説明書・`LICENSE`・`THIRD-PARTY-NOTICES.txt`)は `scripts\package.ps1` で作れます(`dist\Disc2MP4_v<版>.zip`)。`THIRD-PARTY-NOTICES.txt` は `python -I scripts/gen_third_party_notices.py` で作り直せます。
+
+## ライセンス
+
+[GNU General Public License v3.0 以降](LICENSE)(GPL-3.0-or-later)。Copyright (C) 2026 宇摩コードワークス(UmaCodeWorks)。無保証です。ffmpeg は同梱しておらず、別途ダウンロードして使う外部ソフトです。

@@ -9,11 +9,24 @@
 
 | もの | 説明 |
 |---|---|
-| `disc2mp4.exe` | このソフト本体(「ビルド」の手順で作る。`target\release\disc2mp4.exe`) |
-| ffmpeg | 実際の変換を行う無料ソフト。`ffmpeg.exe` と `ffprobe.exe` が必要 |
+| `disc2mp4.exe` | このソフト本体。配布 zip を好きなフォルダに展開するだけで使えます(インストール不要) |
+| ffmpeg | 実際の変換を行う無料ソフト(`ffmpeg.exe` と `ffprobe.exe`)。下の方法で用意します |
 | 変換するディスク | DVD は `VIDEO_TS` フォルダ、ブルーレイは `BDMV` フォルダが入っているもの |
 
-### ffmpeg の準備
+配布 zip の中身: `disc2mp4.exe`、`get-ffmpeg.bat`、`get-ffmpeg.ps1`、`MANUAL.md`(この説明書)、`README.md`、`LICENSE`、`THIRD-PARTY-NOTICES.txt`
+
+### ffmpeg の準備(最初の 1 回)
+
+**方法 1(かんたん・おすすめ): 同梱のスクリプトでダウンロードする**
+
+zip を展開したフォルダにある **`get-ffmpeg.bat` をダブルクリック**します。ffmpeg(Windows 用ビルド、約 100 MB)を自動でダウンロードし、同じフォルダの `ffmpeg\` に置きます。通常は 1〜2 分で終わりますが、配布元が混んでいるときは十数分かかることがあります(そのまま待ってください)。途中で止めた場合は、もう一度ダブルクリックすればやり直せます。
+
+- ダウンロード元は ffmpeg 公式サイトが案内している配布元(gyan.dev)です。公開されているハッシュ値(SHA-256)と照合し、一致しないときは中止します
+- 置かれた `ffmpeg\` フォルダは、`disc2mp4.exe` が自動で見つけて使います。PATH の設定や `--ffmpeg` の指定は要りません
+- 入れ直したいときは、PowerShell で `.\get-ffmpeg.ps1 -Force` を実行します
+- 「WindowsによってPCが保護されました」と出た場合は、「詳細情報」→「実行」を選びます(zip をダウンロードしたファイルには、Windows が警告を付けることがあります)
+
+**方法 2: すでに ffmpeg を持っている場合**
 
 `ffmpeg.exe` と `ffprobe.exe` が入っているフォルダを、環境変数 PATH に追加しておきます(例: `C:\Program Files (x86)\ffmpeg\bin`)。確認方法は、コマンドプロンプトか PowerShell で次を実行して、バージョンが表示されれば OK です。
 
@@ -23,15 +36,17 @@ ffmpeg -version
 
 PATH に追加したくない場合は、変換のたびに `--ffmpeg "C:\...\ffmpeg.exe"` でパスを教えることもできます(`ffprobe.exe` は同じフォルダから探します)。
 
-### ビルド(最初の 1 回)
+ffmpeg は次の順で探します: ① `--ffmpeg` の指定 → ② `disc2mp4.exe` の隣の `ffmpeg\ffmpeg.exe`(または `ffmpeg.exe`)→ ③ PATH 上の ffmpeg
 
-Rust(cargo)が入っている環境で、このフォルダで次を実行します。
+### ビルド(開発者向け・配布 zip を使う場合は不要)
+
+Rust(cargo)が入っている環境で、ソースのフォルダで次を実行します。
 
 ```
 cargo build --release
 ```
 
-`target\release\disc2mp4.exe` ができます。このファイルだけを好きな場所にコピーして使えます。
+`target\release\disc2mp4.exe` ができます。配布用 zip は `scripts\package.ps1` で作れます。
 
 ## 2. 基本の使い方
 
@@ -93,7 +108,7 @@ ISO ファイルは直接読めません。Windows でダブルクリックし�
 | `--quality` | `high`(高画質・遅い) / `standard`(標準・速い) | `high` |
 | `--deinterlace` | ちらつき除去。`auto`(自動) / `on` / `off` | `auto` |
 | `--force` | 既にある出力ファイルを上書きする | 上書きしない |
-| `--ffmpeg` | ffmpeg のパス(PATH に無いとき) | PATH 上の ffmpeg |
+| `--ffmpeg` | ffmpeg のパス | exe の隣の `ffmpeg\` → PATH 上の ffmpeg |
 
 例:
 
@@ -128,7 +143,7 @@ disc2mp4 convert D:\copy --title 2 -o D:\out\second.mp4                 # 2 番�
 | 表示・症状 | 原因と対処 |
 |---|---|
 | `VIDEO_TS も BDMV も見つかりません` | 指定したフォルダが違います。ドライブ直下か、`VIDEO_TS` / `BDMV` を含むフォルダを指定してください |
-| `ffprobe を起動できません` | ffmpeg が見つかりません。PATH に追加するか、`--ffmpeg` でパスを指定してください |
+| `ffprobe を起動できません` | ffmpeg が見つかりません。`get-ffmpeg.bat` を実行するか、PATH に追加するか、`--ffmpeg` でパスを指定してください |
 | `出力先が既に存在します` | 同じ名前のファイルがあります。別名にするか、上書きしてよければ `--force` を付けてください |
 | `変換対象のタイトルがありません` | 10 秒未満のタイトルしかありません。`list` で内容を確認してください |
 | `タイトル N は存在しません` | `--title` の番号が違います。`list` で確認してください |
@@ -154,3 +169,11 @@ disc2mp4 convert D:\copy --title 2 -o D:\out\second.mp4                 # 2 番�
 - 設計書: `docs/superpowers/specs/2026-11-20-disc2mp4-design.md`
 - 実装計画: `docs/superpowers/plans/2026-11-20-disc2mp4.md`
 - テスト: `cargo test`(単体テストと結合テスト。結合テストは ffmpeg が PATH にあるときだけ動作します)
+
+## 9. ライセンスと著作権
+
+- Disc2MP4 は **GNU General Public License v3.0 以降(GPL-3.0-or-later)** で公開しています。無保証です。詳細は同梱の `LICENSE` を参照してください
+- Copyright (C) 2026 宇摩コードワークス(UmaCodeWorks)
+- 利用している Rust のライブラリのライセンス表記は、同梱の `THIRD-PARTY-NOTICES.txt` にあります
+- ffmpeg は別のソフト(GPL ライセンス)で、Disc2MP4 には含まれていません。`get-ffmpeg.bat` でダウンロードしたものは、`ffmpeg\LICENSE.txt` が各自のライセンスです
+- ソースコード: https://github.com/chack1812-debug/Disc2MP4
