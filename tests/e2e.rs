@@ -54,7 +54,7 @@ fn dvd_to_mp4_end_to_end() {
     let out = t.path().join("out").join("movie.mp4");
     convert(args(&disc, Some(out.clone()), false)).unwrap();
     let (height, dur) = probe_height_and_duration(&out);
-    assert_eq!(height, 720);
+    assert_eq!(height, 1080);
     assert!((21.5..=22.5).contains(&dur), "duration {dur}");
 }
 

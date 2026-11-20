@@ -30,9 +30,9 @@ pub struct Options {
 impl Default for Options {
     fn default() -> Self {
         Options {
-            height: Height::Px(720),
+            height: Height::Px(1080),
             deinterlace: Deinterlace::Auto,
-            quality: Quality::Standard,
+            quality: Quality::High,
         }
     }
 }
@@ -144,7 +144,7 @@ mod tests {
         let (b, h, s, u) = (
             pos(&f, "bwdif"),
             pos(&f, "hqdn3d=2:1.5:3:2.5"),
-            pos(&f, "scale=-2:720"),
+            pos(&f, "scale=-2:1080"),
             pos(&f, "unsharp=5:5:0.5"),
         );
         assert!(b < h && h < s && s < u, "{f}");
@@ -175,7 +175,8 @@ mod tests {
         let has = |args: &[String], k: &str, v: &str| {
             args.windows(2).any(|w| w[0] == k && w[1] == v)
         };
-        let std_args = ffmpeg_args("in.vob", Path::new("o.mp4"), &dvd(false), &Options::default());
+        let standard = Options { quality: Quality::Standard, ..Options::default() };
+        let std_args = ffmpeg_args("in.vob", Path::new("o.mp4"), &dvd(false), &standard);
         assert!(has(&std_args, "-crf", "20") && has(&std_args, "-preset", "medium"));
         let high = Options { quality: Quality::High, ..Options::default() };
         let high_args = ffmpeg_args("in.vob", Path::new("o.mp4"), &dvd(false), &high);
@@ -193,5 +194,11 @@ mod tests {
     fn writes_mp4_container_explicitly() {
         let args = ffmpeg_args("in.vob", Path::new("o.mp4.partial"), &dvd(false), &Options::default());
         assert!(args.windows(2).any(|w| w[0] == "-f" && w[1] == "mp4"));
+    }
+
+    #[test]
+    fn defaults_are_1080p_high_quality() {
+        let d = Options::default();
+        assert_eq!((d.height, d.quality, d.deinterlace), (Height::Px(1080), Quality::High, Deinterlace::Auto));
     }
 }

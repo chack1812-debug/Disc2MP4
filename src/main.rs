@@ -33,13 +33,13 @@ enum Command {
         #[arg(long)]
         all: bool,
         /// 出力の高さ: 720 / 1080 / keep(元のまま)
-        #[arg(long, default_value = "720", value_parser = parse_height)]
+        #[arg(long, default_value = "1080", value_parser = parse_height)]
         height: Height,
         /// インターレース解除: auto / on / off
         #[arg(long, default_value = "auto", value_parser = parse_deinterlace)]
         deinterlace: Deinterlace,
         /// 画質: standard / high
-        #[arg(long, default_value = "standard", value_parser = parse_quality)]
+        #[arg(long, default_value = "high", value_parser = parse_quality)]
         quality: Quality,
         /// 既存の出力を上書きする
         #[arg(long)]

@@ -31,9 +31,9 @@ disc2mp4 convert <ディスクのパス> --title 2 -o D:\out\movie.mp4
 | `-o, --out` | 出力先(`.mp4` ファイル、またはフォルダ) | ディスクのフォルダの隣に `<フォルダ名>.mp4`(ドライブ直下ならカレントに `disc.mp4`) |
 | `--title N` | 変換するタイトル番号 | 最長のタイトル |
 | `--all` | 全タイトルを `_titleNN.mp4` で個別に変換 | off |
-| `--height` | 出力の高さ `720` / `1080` / `keep`(元より小さくなる指定は拡大しない) | 720 |
+| `--height` | 出力の高さ `720` / `1080` / `keep`(元より小さくなる指定は拡大しない) | 1080 |
 | `--deinterlace` | `auto` / `on` / `off`(auto は映像がインターレースのときだけ解除) | auto |
-| `--quality` | `standard`(crf 20) / `high`(crf 17、遅い) | standard |
+| `--quality` | `standard`(crf 20、速い) / `high`(crf 17、遅い) | high |
 | `--force` | 既存の出力を上書きする | off |
 | `--ffmpeg` | ffmpeg のパス | PATH 上の ffmpeg |
 

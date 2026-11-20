@@ -75,9 +75,9 @@ disc2mp4 convert <ディスクのパス> --all           # 全タイトルを個
 
 1. デインターレース: `auto` は ffprobe の `field_order` がインターレースなら `bwdif=mode=send_frame`(フレームレートは維持)。プログレッシブなら適用しない
 2. ノイズ除去: `hqdn3d=2:1.5:3:2.5`(弱め)。強さは `--quality` に関わらず固定とする(画像を溶かさないため。quality の差はエンコード品質 crf/preset だけで付ける)
-3. 拡大: 非正方形画素(DVD の 720x480 など)を SAR 補正で正しい縦横比に直したうえで、`--height`(既定 720)へ `scale=...:flags=lanczos`。元より小さくなる指定は拡大しない
+3. 拡大: 非正方形画素(DVD の 720x480 など)を SAR 補正で正しい縦横比に直したうえで、`--height`(既定 1080。実ディスク確認後に 720 から変更)へ `scale=...:flags=lanczos`。元より小さくなる指定は拡大しない
 4. シャープ: `unsharp=5:5:0.5`(弱め)
-5. エンコード: libx264、`standard` = crf 20 / preset medium、`high` = crf 17 / preset slow、`yuv420p`、`+faststart`。音声は AAC 192k
+5. エンコード: libx264、`standard` = crf 20 / preset medium、`high` = crf 17 / preset slow(既定は high。実ディスク確認後に standard から変更)、`yuv420p`、`+faststart`。音声は AAC 192k
 
 ### 出力と安全性
 
