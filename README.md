@@ -2,6 +2,8 @@
 
 自作(ホームビデオ)の DVD(`VIDEO_TS`)・ブルーレイ(`BDMV`)を、画質を整えた `.mp4`(H.264 + AAC)に変換するコマンドラインツールです。変換エンジンは ffmpeg を使います。
 
+**使い方の詳細は [取扱説明書](docs/MANUAL.md) を参照してください。**
+
 ## 前提
 
 - ffmpeg / ffprobe が PATH 上にあること(または `--ffmpeg <ffmpeg のパス>` で指定。ffprobe は同じフォルダから探します)
