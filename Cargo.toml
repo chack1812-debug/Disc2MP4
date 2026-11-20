@@ -3,6 +3,7 @@ name = "disc2mp4"
 version = "0.1.0"
 edition = "2021"
 description = "Convert home-made DVD/Blu-ray folders to mp4 with ffmpeg"
+license = "GPL-3.0-or-later"
 
 [dependencies]
 anyhow = "1.0.104"
