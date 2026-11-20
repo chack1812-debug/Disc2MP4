@@ -1,7 +1,8 @@
 use clap::{Parser, Subcommand};
 use disc2mp4::commands::{convert, list, ConvertArgs};
 use disc2mp4::plan::{Deinterlace, Height, Options, Quality};
-use std::path::{Path, PathBuf};
+use disc2mp4::toolpath::{ffprobe_for, resolve_ffmpeg};
+use std::path::PathBuf;
 use std::process::ExitCode;
 
 #[derive(Parser)]
@@ -17,8 +18,9 @@ enum Command {
     List {
         /// VIDEO_TS / BDMV フォルダ、またはそれを含むフォルダ
         path: PathBuf,
-        #[arg(long, default_value = "ffmpeg")]
-        ffmpeg: PathBuf,
+        /// ffmpeg のパス(省略時は exe の隣の ffmpeg フォルダ、なければ PATH 上の ffmpeg)
+        #[arg(long)]
+        ffmpeg: Option<PathBuf>,
     },
     /// mp4 に変換する(既定は最長のタイトル)
     Convert {
@@ -44,8 +46,9 @@ enum Command {
         /// 既存の出力を上書きする
         #[arg(long)]
         force: bool,
-        #[arg(long, default_value = "ffmpeg")]
-        ffmpeg: PathBuf,
+        /// ffmpeg のパス(省略時は exe の隣の ffmpeg フォルダ、なければ PATH 上の ffmpeg)
+        #[arg(long)]
+        ffmpeg: Option<PathBuf>,
     },
 }
 
@@ -77,19 +80,17 @@ fn parse_quality(s: &str) -> Result<Quality, String> {
     }
 }
 
-/// ffprobe is looked up next to a given ffmpeg path, otherwise on PATH.
-fn ffprobe_for(ffmpeg: &Path) -> PathBuf {
-    match ffmpeg.parent() {
-        Some(dir) if !dir.as_os_str().is_empty() => dir.join("ffprobe"),
-        _ => PathBuf::from("ffprobe"),
-    }
+fn resolve(explicit: Option<PathBuf>) -> PathBuf {
+    let exe_dir = std::env::current_exe().ok().and_then(|p| p.parent().map(|d| d.to_path_buf()));
+    resolve_ffmpeg(explicit, exe_dir.as_deref())
 }
 
 fn main() -> ExitCode {
     let cli = Cli::parse();
     let result = match cli.command {
-        Command::List { path, ffmpeg } => list(&path, &ffprobe_for(&ffmpeg)),
+        Command::List { path, ffmpeg } => list(&path, &ffprobe_for(&resolve(ffmpeg))),
         Command::Convert { path, out, title, all, height, deinterlace, quality, force, ffmpeg } => {
+            let ffmpeg = resolve(ffmpeg);
             convert(ConvertArgs {
                 path,
                 out,
