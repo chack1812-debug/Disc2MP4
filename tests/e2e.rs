@@ -90,3 +90,43 @@ fn list_reports_titles() {
     make_vob(&disc.join("VIDEO_TS/VTS_01_1.VOB"));
     list(&disc, Path::new("ffprobe")).unwrap();
 }
+
+#[test]
+fn title_duration_sums_all_files() {
+    if !have_ffmpeg() { eprintln!("skip: ffmpeg not found"); return; }
+    let t = tempfile::tempdir().unwrap();
+    let disc = t.path().join("disc");
+    make_vob(&disc.join("VIDEO_TS/VTS_01_1.VOB"));
+    make_vob(&disc.join("VIDEO_TS/VTS_01_2.VOB"));
+    let d = disc2mp4::scan::scan(&disc).unwrap();
+    let info = disc2mp4::commands::probe_title(&d.titles[0], Path::new("ffprobe")).unwrap();
+    let dur = info.duration_secs.unwrap();
+    assert!((21.0..=23.0).contains(&dur), "duration {dur}");
+}
+
+#[test]
+fn failure_keeps_existing_output_and_leaves_no_partial() {
+    if !have_ffmpeg() { eprintln!("skip: ffmpeg not found"); return; }
+    let t = tempfile::tempdir().unwrap();
+    let disc = t.path().join("disc");
+    make_vob(&disc.join("VIDEO_TS/VTS_01_1.VOB"));
+    let out = t.path().join("keep.mp4");
+    std::fs::write(&out, b"precious").unwrap();
+    let mut a = args(&disc, Some(out.clone()), true);
+    a.options.height = disc2mp4::plan::Height::Px(99999);
+    assert!(convert(a).is_err());
+    assert_eq!(std::fs::read(&out).unwrap(), b"precious");
+    assert!(!t.path().join("keep.mp4.partial").exists());
+}
+
+#[test]
+fn missing_ffprobe_is_reported_clearly() {
+    let t = tempfile::tempdir().unwrap();
+    let disc = t.path().join("disc");
+    std::fs::create_dir_all(disc.join("VIDEO_TS")).unwrap();
+    std::fs::write(disc.join("VIDEO_TS/VTS_01_1.VOB"), b"x").unwrap();
+    let mut a = args(&disc, None, false);
+    a.ffprobe = PathBuf::from("Z:/nope/ffprobe");
+    let msg = convert(a).unwrap_err().to_string();
+    assert!(msg.contains("ffprobe") && msg.contains("起動"), "{msg}");
+}

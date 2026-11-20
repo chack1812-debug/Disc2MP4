@@ -88,7 +88,7 @@ pub fn ffmpeg_args(input: &str, output: &Path, info: &MediaInfo, opts: &Options)
     a.extend(
         [
             "-c:v", "libx264", "-crf", crf, "-preset", preset, "-pix_fmt", "yuv420p", "-c:a",
-            "aac", "-b:a", "192k", "-movflags", "+faststart",
+            "aac", "-b:a", "192k", "-movflags", "+faststart", "-f", "mp4",
         ]
         .iter()
         .map(|s| s.to_string()),
@@ -187,5 +187,11 @@ mod tests {
         let args = ffmpeg_args("in.vob", Path::new("o.mp4"), &dvd(false), &Options::default());
         assert_eq!(args.last().unwrap(), "o.mp4");
         assert!(args.iter().any(|a| a == "0:a:0?"));
+    }
+
+    #[test]
+    fn writes_mp4_container_explicitly() {
+        let args = ffmpeg_args("in.vob", Path::new("o.mp4.partial"), &dvd(false), &Options::default());
+        assert!(args.windows(2).any(|w| w[0] == "-f" && w[1] == "mp4"));
     }
 }

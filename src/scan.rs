@@ -96,6 +96,9 @@ fn finish(kind: DiscKind, root: PathBuf, titles: Vec<Title>) -> Result<Disc> {
 /// Scan a `VIDEO_TS`/`BDMV` folder, or a folder containing one, into a list of titles.
 /// If both exist, the DVD is used.
 pub fn scan(path: &Path) -> Result<Disc> {
+    // Absolute (not canonicalized, to avoid `\\?\` paths) so `.` / relative inputs behave like full paths.
+    let path = std::path::absolute(path).unwrap_or_else(|_| path.to_path_buf());
+    let path = path.as_path();
     if let Some(dir) = find_dir(path, "VIDEO_TS") {
         return scan_dvd(dir);
     }
@@ -184,5 +187,15 @@ mod tests {
         let t = tempfile::tempdir().unwrap();
         let msg = scan(t.path()).unwrap_err().to_string();
         assert!(msg.contains("VIDEO_TS") && msg.contains("BDMV"), "{msg}");
+    }
+
+    #[test]
+    fn relative_input_gives_absolute_root() {
+        let t = tempfile::tempdir_in(".").unwrap();
+        touch(t.path(), "VIDEO_TS/VTS_01_1.VOB");
+        let rel = Path::new(t.path().file_name().unwrap()).join("VIDEO_TS");
+        assert!(rel.is_relative());
+        let disc = scan(&rel).unwrap();
+        assert!(disc.root.is_absolute(), "{:?}", disc.root);
     }
 }

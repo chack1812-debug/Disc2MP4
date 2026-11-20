@@ -10,6 +10,46 @@ use std::path::{Path, PathBuf};
 /// Titles shorter than this are skipped by default.
 const MIN_TITLE_SECS: f64 = 10.0;
 
+/// Fail early, with a clear message, when ffprobe cannot be launched at all.
+pub fn ensure_ffprobe(ffprobe: &Path) -> Result<()> {
+    std::process::Command::new(ffprobe)
+        .arg("-version")
+        .output()
+        .map(|_| ())
+        .with_context(|| {
+            format!(
+                "ffprobe を起動できません({})。ffmpeg を PATH に入れるか --ffmpeg でパスを指定してください",
+                ffprobe.display()
+            )
+        })
+}
+
+/// Temporary sibling the encoder writes to; renamed to the real output only on success.
+pub fn partial_path(output: &Path) -> PathBuf {
+    let mut name = output.file_name().unwrap_or_default().to_os_string();
+    name.push(".partial");
+    output.with_file_name(name)
+}
+
+/// Probe a title. Stream properties come from the first file; the duration is the sum of every
+/// file's own duration, because ffprobe on a `concat:` input can report only the last segment
+/// when the VOBs' timestamps restart.
+pub fn probe_title(title: &crate::Title, ffprobe: &Path) -> Result<MediaInfo> {
+    let mut info = probe(ffprobe, &title.files[0].to_string_lossy())?;
+    if title.files.len() > 1 {
+        let mut total = 0.0;
+        let mut known = true;
+        for f in &title.files {
+            match probe(ffprobe, &f.to_string_lossy()).ok().and_then(|i| i.duration_secs) {
+                Some(d) => total += d,
+                None => known = false,
+            }
+        }
+        info.duration_secs = known.then_some(total);
+    }
+    Ok(info)
+}
+
 /// Pick the titles to convert from `(index, duration_secs, size_bytes)` rows.
 pub fn select_titles(
     rows: &[(usize, Option<f64>, u64)],
@@ -89,21 +129,19 @@ pub fn format_duration(secs: Option<f64>) -> String {
     }
 }
 
-fn probe_titles(disc: &Disc, ffprobe: &Path) -> Vec<Option<MediaInfo>> {
-    disc.titles
-        .iter()
-        .map(|t| probe(ffprobe, &t.input_arg()).ok())
-        .collect()
+fn probe_titles(disc: &Disc, ffprobe: &Path) -> Vec<Result<MediaInfo>> {
+    disc.titles.iter().map(|t| probe_title(t, ffprobe)).collect()
 }
 
 pub fn list(path: &Path, ffprobe: &Path) -> Result<()> {
+    ensure_ffprobe(ffprobe)?;
     let disc = scan(path)?;
     println!("{:?}: {}", disc.kind, disc.root.display());
     let infos = probe_titles(&disc, ffprobe);
     for (t, info) in disc.titles.iter().zip(&infos) {
-        let dur = info.as_ref().and_then(|i| i.duration_secs);
+        let info = info.as_ref().ok();
+        let dur = info.and_then(|i| i.duration_secs);
         let res = info
-            .as_ref()
             .map_or("?".to_string(), |i| format!("{}x{}", i.width, i.height));
         let note = if dur.map_or(false, |d| d < MIN_TITLE_SECS) {
             "  (短いため既定では除外)"
@@ -135,13 +173,14 @@ pub struct ConvertArgs {
 }
 
 pub fn convert(args: ConvertArgs) -> Result<()> {
+    ensure_ffprobe(&args.ffprobe)?;
     let disc = scan(&args.path)?;
     let infos = probe_titles(&disc, &args.ffprobe);
     let rows: Vec<(usize, Option<f64>, u64)> = disc
         .titles
         .iter()
         .zip(&infos)
-        .map(|(t, i)| (t.index, i.as_ref().and_then(|i| i.duration_secs), t.size_bytes))
+        .map(|(t, i)| (t.index, i.as_ref().ok().and_then(|i| i.duration_secs), t.size_bytes))
         .collect();
     let selected = select_titles(&rows, args.title, args.all)?;
     let multiple = selected.len() > 1;
@@ -162,24 +201,32 @@ pub fn convert(args: ConvertArgs) -> Result<()> {
     for (n, (idx, output)) in jobs.iter().enumerate() {
         let pos = disc.titles.iter().position(|t| t.index == *idx).expect("selected exists");
         let title = &disc.titles[pos];
-        let info = infos[pos]
-            .as_ref()
-            .ok_or_else(|| anyhow!("{} の映像情報を取得できません(ファイルが壊れている可能性があります)", title.label))?;
+        let info = infos[pos].as_ref().map_err(|e| {
+            anyhow!("{} の映像情報を取得できません(ファイルが壊れている可能性があります): {e:#}", title.label)
+        })?;
         if let Some(dir) = output.parent().filter(|d| !d.as_os_str().is_empty()) {
             std::fs::create_dir_all(dir)
                 .with_context(|| format!("出力フォルダを作れません: {}", dir.display()))?;
         }
         println!("[{}/{}] {} -> {}", n + 1, jobs.len(), title.label, output.display());
-        let ff_args = ffmpeg_args(&title.input_arg(), output, info, &args.options);
+        // Encode into a temporary file and move it into place only on success, so a failure or
+        // an interruption never destroys an existing output nor leaves a half-written .mp4.
+        let partial = partial_path(output);
+        let _ = std::fs::remove_file(&partial);
+        let ff_args = ffmpeg_args(&title.input_arg(), &partial, info, &args.options);
         let mut on_progress = |p: f64| {
             print!("\r  {:>3}%", (p * 100.0) as u32);
             let _ = std::io::stdout().flush();
         };
         let result = run_ffmpeg(&args.ffmpeg, &ff_args, info.duration_secs, &mut on_progress);
         println!();
-        if let Err(e) = result {
-            let _ = std::fs::remove_file(output);
-            return Err(e);
+        match result {
+            Ok(()) => std::fs::rename(&partial, output)
+                .with_context(|| format!("出力ファイルを作れません: {}", output.display()))?,
+            Err(e) => {
+                let _ = std::fs::remove_file(&partial);
+                return Err(e);
+            }
         }
     }
     Ok(())
@@ -249,5 +296,16 @@ mod tests {
     fn format_duration_is_mm_ss() {
         assert_eq!(format_duration(Some(125.4)), "2:05");
         assert_eq!(format_duration(None), "?");
+    }
+
+    #[test]
+    fn ensure_ffprobe_errors_when_missing() {
+        let msg = ensure_ffprobe(Path::new("Z:/nope/ffprobe")).unwrap_err().to_string();
+        assert!(msg.contains("ffprobe"), "{msg}");
+    }
+
+    #[test]
+    fn partial_path_is_a_hidden_sibling_that_cannot_be_mistaken_for_output() {
+        assert_eq!(partial_path(Path::new("o/a.mp4")), Path::new("o/a.mp4.partial"));
     }
 }
